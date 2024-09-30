@@ -54,14 +54,29 @@ export const getCurrentWeather = async (req, res) => {
 };
 
 
-export const getWeatherByHour = async (req, res) => {
+export const getWeatherByHourToday = async (req, res) => {
     try{
         const response = await fetch('https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/cairo?unitGroup=metric&include=hours&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json');
         if (!response.ok) {
             return res.status(response.status).json({ error: 'Failed to fetch weather data' });
         }
         const data = await response.json();
-        res.json(data);
+
+        const filteredData={
+            location: data.resolvedAddress,
+            hourlyWeather: data.days[0].hours.map(hour => {
+                return {
+                    time: hour.datetime,
+                    temperature: hour.temp,
+                    feelslike: hour.feelslike,
+                    humidity: hour.humidity,
+                    windSpeed: hour.windspeed,
+                    description: hour.conditions
+                }
+            })
+        } 
+        
+        res.json(filteredData);
 
 
 
