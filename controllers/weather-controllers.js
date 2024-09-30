@@ -52,3 +52,22 @@ export const getCurrentWeather = async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };
+
+
+export const getWeatherByHour = async (req, res) => {
+    try{
+        const response = await fetch('https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/cairo?unitGroup=metric&include=hours&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json');
+        if (!response.ok) {
+            return res.status(response.status).json({ error: 'Failed to fetch weather data' });
+        }
+        const data = await response.json();
+        res.json(data);
+
+
+
+
+    }catch(e){
+        console.log(e)
+        res.status(500).json({message: "Server Error"})
+    }
+}
