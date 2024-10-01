@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "body-parser": "^1.20.3",
+    "current-location-geo": "^1.1.5",
     "express": "^4.21.0",
     "nodemon": "^3.1.7"
   }
