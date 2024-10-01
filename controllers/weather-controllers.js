@@ -83,9 +83,10 @@ export const getCurrentWeather = async (req, res) => {
             windSpeed: weatherData.currentConditions.windspeed,
             description: weatherData.description
         });
-        await loggedinUser.save({ session });
+        if (loggedinUser.logHistory.length > 3) {
+            loggedinUser.logHistory.shift();}
+        await loggedinUser.save({ session })
         await session.commitTransaction();
-
         res.json(filteredData);
 
     } catch (error) {
