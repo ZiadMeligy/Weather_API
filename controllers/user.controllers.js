@@ -77,3 +77,21 @@ export const login = async (req, res, next) => {
     res.status(500).json({ message: "Login failed" });
   }
 };
+
+export const clearHistorybyId = async (req, res, next) => {
+  const userId = req.params.id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.logHistory = [];
+    await user.save();
+    return res.status(200).json({ message: "History cleared successfully" });
+
+}catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
