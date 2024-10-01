@@ -5,7 +5,7 @@ const weatherRouter = express.Router();
 
 // weatherRouter.get('/', getMyLocationWeather);
 weatherRouter.get('/:location/all', getAllWeather);
-weatherRouter.get('/:location/current', getCurrentWeather);
+weatherRouter.get('/:location/current/:userId', getCurrentWeather);
 weatherRouter.get('/:location/hourly', getWeatherByHourToday);
 weatherRouter.get('/:location/weekly', getWeatherWeekly); 
 
