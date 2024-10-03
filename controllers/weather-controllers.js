@@ -182,10 +182,23 @@ export const getWeatherWeekly = async (req, res) => {
 
 export const getMyCurrentWeather = async (req, res) => {
   try {
+    const userId = req.params.userId;
+    let existingUser;
+
+    if (!userId) {
+      return res.status(404).json({ message: "UserId is required" });
+    }
+    existingUser = await User.findById(userId);
+    if (!existingUser) {
+      return res.status(404).json({ message: "User does not exist" });
+    }
+
+    // this should be handled in the frontend actually to grab the user's client location.
+    // However I am not sure if im going to make a client side
     const locationdata = await fetch("http://ip-api.com/json");
     const locationData = await locationdata.json();
     const weatherResponse = await fetch(
-      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${locationData['city']}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
+      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${locationData["city"]}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
     );
 
     if (!weatherResponse.ok) {
@@ -211,7 +224,22 @@ export const getMyCurrentWeather = async (req, res) => {
       },
       description: weatherData.description,
     };
-
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    existingUser.logHistory.push({
+      location: weatherData.resolvedAddress,
+      currentTime,
+      currentHour,
+      temperature: weatherData.currentConditions.temp,
+      humidity: weatherData.currentConditions.humidity,
+      windSpeed: weatherData.currentConditions.windspeed,
+      description: weatherData.description,
+    });
+    if (existingUser.logHistory.length > 3) {
+      existingUser.logHistory.shift();
+    }
+    await existingUser.save({ session });
+    await session.commitTransaction();
     res.json(filteredData);
   } catch (e) {
     console.error(e);

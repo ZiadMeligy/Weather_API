@@ -10,10 +10,10 @@ import {
 const weatherRouter = express.Router();
 
 // weatherRouter.get('/', getMyLocationWeather);
-weatherRouter.get('/:location/all', getAllWeather);
+weatherRouter.get('/:location/all/:userId', getAllWeather);
 weatherRouter.get('/:location/current/:userId', getCurrentWeather);
-weatherRouter.get('/:location/hourly', getWeatherByHourToday);
-weatherRouter.get('/:location/weekly', getWeatherWeekly); 
-weatherRouter.get("/current/mylocation", getMyCurrentWeather);
+weatherRouter.get('/:location/hourly/:userId', getWeatherByHourToday);
+weatherRouter.get('/:location/weekly/:userId', getWeatherWeekly); 
+weatherRouter.get("/current/mylocation/:userId", getMyCurrentWeather);
 
 export default weatherRouter;
