@@ -103,9 +103,18 @@ export const getCurrentWeather = async (req, res) => {
 };
 
 export const getWeatherByHourToday = async (req, res) => {
+  const { userId, location } = req.params;
   try {
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    if (!location) {
+      return res.status(400).json({ error: "Location is required" });
+    }
+    const session = await mongoose.startSession();
+    const loggedinUser = await User.findById(userId);
     const response = await fetch(
-      "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/cairo?unitGroup=metric&include=hours&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json"
+      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${location}?unitGroup=metric&include=hours&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
     );
     if (!response.ok) {
       return res
@@ -128,6 +137,19 @@ export const getWeatherByHourToday = async (req, res) => {
       }),
     };
 
+    session.startTransaction();
+    loggedinUser.logHistory.push({
+      location: data.resolvedAddress,
+      currentTime: new Date().toLocaleString("en-US", {
+        timeZone: "Africa/Cairo",
+      }),
+      hourlyWeather: filteredData.hourlyWeather,
+    });
+    if (loggedinUser.logHistory.length > 3) {
+      loggedinUser.logHistory.shift();
+    }
+    await loggedinUser.save({ session });
+    await session.commitTransaction();
     res.json(filteredData);
   } catch (e) {
     console.log(e);
@@ -138,6 +160,7 @@ export const getWeatherByHourToday = async (req, res) => {
 export const getWeatherWeekly = async (req, res) => {
   try {
     const location = req.params.location;
+
     const response = await fetch(
       `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${location}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
     );
