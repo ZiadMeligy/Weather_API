@@ -12,6 +12,7 @@
 
 import User from "../models/user-model.js";
 import mongoose from "mongoose";
+import redisClient from "../redis.js";
 
 export const getAllWeather = async (req, res) => {
   try {
@@ -34,25 +35,97 @@ export const getAllWeather = async (req, res) => {
   }
 };
 
+// export const getCurrentWeather = async (req, res) => {
+//   const { userId, location } = req.params;
+//   try {
+//     if (!userId) {
+//       return res.status(400).json({ error: "User ID is required" });
+//     }
+
+//     if (!location) {
+//       return res.status(400).json({ error: "Location is required" });
+//     }
+
+//     const loggedinUser = await User.findById(userId);
+//     if (!loggedinUser) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     const session = await mongoose.startSession();
+//     const weatherResponse = await fetch(
+//       `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${location}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
+//     );
+
+//     if (!weatherResponse.ok) {
+//       return res
+//         .status(weatherResponse.status)
+//         .json({ error: "Failed to fetch weather data" });
+//     }
+
+//     const weatherData = await weatherResponse.json();
+
+//     const currentTime = new Date().toLocaleString("en-US", {
+//       timeZone: "Africa/Cairo",
+//     });
+//     const currentHour = currentTime.split(",")[1].split(":")[0].trim();
+
+//     const filteredData = {
+//       location: weatherData.resolvedAddress,
+//       currentTime,
+//       currentHour,
+//       currentConditions: {
+//         temperature: weatherData.currentConditions.temp,
+//         humidity: weatherData.currentConditions.humidity,
+//         windSpeed: weatherData.currentConditions.windspeed + " km/h",
+//       },
+//       description: weatherData.description,
+//     };
+
+//     session.startTransaction();
+//     loggedinUser.logHistory.push({
+//       location: weatherData.resolvedAddress,
+//       currentTime,
+//       currentHour,
+//       temperature: weatherData.currentConditions.temp,
+//       humidity: weatherData.currentConditions.humidity,
+//       windSpeed: weatherData.currentConditions.windspeed,
+//       description: weatherData.description,
+//     });
+//     if (loggedinUser.logHistory.length > 3) {
+//       loggedinUser.logHistory.shift();
+//     }
+//     await loggedinUser.save({ session });
+//     await session.commitTransaction();
+//     res.json(filteredData);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// };
 export const getCurrentWeather = async (req, res) => {
   const { userId, location } = req.params;
   try {
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
     }
-
     if (!location) {
       return res.status(400).json({ error: "Location is required" });
     }
 
-    const loggedinUser = await User.findById(userId);
-    if (!loggedinUser) {
-      return res.status(404).json({ error: "User not found" });
+    const cityCode = location.toLowerCase(); // Use the city code as the cache key
+    const cacheKey = `weather:${cityCode}:current`;
+
+    // Check if the data is already cached
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("Cache hit");
+      return res.json(JSON.parse(cachedData));
     }
 
-    const session = await mongoose.startSession();
+    console.log("Cache miss");
+    // Fetch the data from the weather API
     const weatherResponse = await fetch(
-      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${location}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
+      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${cityCode}?unitGroup=metric&key=LJBU6P5FG3UY5WB2KUV65GSSG&contentType=json`
     );
 
     if (!weatherResponse.ok) {
@@ -62,16 +135,8 @@ export const getCurrentWeather = async (req, res) => {
     }
 
     const weatherData = await weatherResponse.json();
-
-    const currentTime = new Date().toLocaleString("en-US", {
-      timeZone: "Africa/Cairo",
-    });
-    const currentHour = currentTime.split(",")[1].split(":")[0].trim();
-
     const filteredData = {
       location: weatherData.resolvedAddress,
-      currentTime,
-      currentHour,
       currentConditions: {
         temperature: weatherData.currentConditions.temp,
         humidity: weatherData.currentConditions.humidity,
@@ -80,21 +145,9 @@ export const getCurrentWeather = async (req, res) => {
       description: weatherData.description,
     };
 
-    session.startTransaction();
-    loggedinUser.logHistory.push({
-      location: weatherData.resolvedAddress,
-      currentTime,
-      currentHour,
-      temperature: weatherData.currentConditions.temp,
-      humidity: weatherData.currentConditions.humidity,
-      windSpeed: weatherData.currentConditions.windspeed,
-      description: weatherData.description,
-    });
-    if (loggedinUser.logHistory.length > 3) {
-      loggedinUser.logHistory.shift();
-    }
-    await loggedinUser.save({ session });
-    await session.commitTransaction();
+    // Cache the data in Redis with a 12-hour expiration
+    await redisClient.setEx(cacheKey, 43200, JSON.stringify(filteredData));
+
     res.json(filteredData);
   } catch (error) {
     console.error(error);
