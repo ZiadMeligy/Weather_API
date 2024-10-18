@@ -18,7 +18,7 @@ export const getAllUsers = async (req, res, next) => {
         console.log(logTime, currentTime, diffTime);
         return {
           ...log,
-          hoursAgo: `${diffDays} Days, ${diffTime} hours ago`,
+          FetchTime: `${diffDays} Days, ${diffTime} hours ago`,
         };
       });
       return user;
