@@ -3,11 +3,26 @@ import User from "../models/user-model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-
 export const getAllUsers = async (req, res, next) => {
   let users;
   try {
     users = await User.find();
+    const currentTime = new Date()
+    users = users.map((user) => {
+      user.logHistory = user.logHistory.map((log) => {
+        const logTime = new Date(log.currentTime);
+        const diffTime = Math.floor(
+          Math.abs(logTime - currentTime) / (1000 * 60 * 60)
+        );
+        const diffDays = Math.floor(diffTime / 24);
+        console.log(logTime, currentTime, diffTime);
+        return {
+          ...log,
+          hoursAgo: `${diffDays} Days, ${diffTime} hours ago`,
+        };
+      });
+      return user;
+    });
   } catch (err) {
     console.log(err);
   }
@@ -89,8 +104,7 @@ export const clearHistorybyId = async (req, res, next) => {
     user.logHistory = [];
     await user.save();
     return res.status(200).json({ message: "History cleared successfully" });
-
-}catch (err) {
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Internal Server Error" });
   }

@@ -111,7 +111,12 @@ export const getCurrentWeather = async (req, res) => {
     if (!location) {
       return res.status(400).json({ error: "Location is required" });
     }
+    const loggedinUser = await User.findById(userId);
+    if (!loggedinUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
+    const session = await mongoose.startSession();
     const cityCode = location.toLowerCase(); // Use the city code as the cache key
     const cacheKey = `weather:${cityCode}:current`;
 
@@ -144,6 +149,26 @@ export const getCurrentWeather = async (req, res) => {
       },
       description: weatherData.description,
     };
+
+      const currentTime = new Date().toLocaleString("en-US", {
+      timeZone: "Africa/Cairo",
+    });
+    const currentHour = currentTime.split(",")[1].split(":")[0].trim();
+    session.startTransaction();
+    loggedinUser.logHistory.push({
+      location: weatherData.resolvedAddress,
+      currentTime,
+      currentHour,
+      temperature: weatherData.currentConditions.temp,
+      humidity: weatherData.currentConditions.humidity,
+      windSpeed: weatherData.currentConditions.windspeed,
+      description: weatherData.description,
+    });
+    if (loggedinUser.logHistory.length > 3) {
+      loggedinUser.logHistory.shift();
+    }
+    await loggedinUser.save({ session });
+    await session.commitTransaction();
 
     // Cache the data in Redis with a 12-hour expiration
     await redisClient.setEx(cacheKey, 43200, JSON.stringify(filteredData));
